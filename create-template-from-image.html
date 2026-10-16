@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buat Frame Twibon (lubangi + overlay) – terisolasi</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#0b1026;--card:#15182b;--fg:#f8fafc;--muted:#cbd5e1;--border:#334155;--accent:#6366f1}
+html{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+header{flex:none;padding:10px 12px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(99,102,241,.15),transparent)}
+header h1{margin:0;font-size:16px}
+main{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);gap:10px;padding:10px;width:100%;align-items:stretch}
+aside{min-height:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;overflow-x:hidden;padding-right:4px}
+aside>*{flex:0 0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.card-head{padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px}
+.card-body{padding:10px;display:flex;flex-direction:column;gap:8px}
+.preview{min-height:0;display:flex;flex-direction:column}
+.stage{flex:1 1 auto;min-height:0;min-width:0;display:flex;flex-direction:row;align-items:center;justify-content:center;padding:10px;overflow:auto}
+canvas{display:block;max-width:100%;max-height:100%;width:auto;height:auto;border-radius:10px;border:1px solid var(--border);background-image:linear-gradient(45deg,#1e293b 25%,transparent 25%,transparent 75%,#1e293b 75%),linear-gradient(45deg,#1e293b 25%,transparent 25%,transparent 75%,#1e293b 75%);background-size:20px 20px;background-position:0 0,10px 10px}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+input,select,button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px 8px;font-size:12px}
+input[type=file]{padding:3px 4px}
+input[type=range]{padding:2px 0}
+button{cursor:pointer}
+button.primary{background:var(--accent);border-color:transparent}
+button:disabled{opacity:.4;cursor:not-allowed}
+small{color:var(--muted);font-size:11px}
+.export-info{color:var(--fg);font-size:12px;font-weight:600;line-height:1.4}
+.export-info .warn{color:#fbbf24}
+@media (max-width:800px){
+  body{display:block;height:auto;min-height:100dvh;overflow:auto}
+  main{grid-template-columns:1fr;grid-auto-rows:min-content}
+  aside{max-height:none;overflow:visible;order:2;padding-right:0}
+  .preview{order:1}
+  .stage{min-height:0;overflow:visible}
+  canvas{max-height:70dvh;margin:0 auto}
+}
+</style>
+</head>
+<body>
+<header>
+<h1>Buat Frame Twibon – Lubangi gambar + Tambah overlay + Ekspor PNG</h1>
+</header>
+<main>
+<aside>
+<div class="card">
+<div class="card-head"><strong>1) Gambar dasar</strong></div>
+<div class="card-body">
+<label>Unggah gambar (jpg/png/webp)
+<input id="base" type="file" accept="image/*">
+</label>
+<small>Ukuran kanvas menyesuaikan gambar dasar.</small>
+</div>
+</div>
+<div class="card">
+<div class="card-head"><strong>2) Bentuk & ukuran lubang</strong></div>
+<div class="card-body">
+<label>Bentuk lubang
+<select id="shape">
+<option value="circle">Lingkaran</option>
+<option value="rounded">Persegi bulat</option>
+<option value="ellipse">Elips</option>
+<option value="none">Tanpa lubang (hanya overlay)</option>
+</select>
+</label>
+<label>Posisi X <input id="holeX" type="range" min="0" max="100" step="1" value="50"></label>
+<label>Posisi Y <input id="holeY" type="range" min="0" max="100" step="1" value="50"></label>
+<label>Lebar <input id="holeW" type="range" min="1" max="100" step="1" value="38"></label>
+<label>Tinggi <input id="holeH" type="range" min="1" max="100" step="1" value="38"></label>
+<label>Sudut bulat (hanya "Persegi bulat") <input id="holeR" type="range" min="0" max="80" step="1" value="18"></label>
+<div class="row"><button id="center" class="primary">Tengah</button><button id="resetHole">Reset</button></div>
+<small>Slider sudah bisa penuh (1–100%) jadi lubang bisa sangat besar.</small>
+</div>
+</div>
+<div class="card">
+<div class="card-head"><strong>3) Overlay (opsional)</strong></div>
+<div class="card-body">
+<label>Tambah overlay dari file lokal
+<input id="ovFile" type="file" accept="image/*" multiple>
+</label>
+<label>Atau paste gambar (Ctrl+V / ⌘+V)</label>
+<div class="row"><button id="paste">Paste dari clipboard</button><button id="clearOv">Hapus semua overlay</button></div>
+<small>Seret overlay paling atas untuk menggeser.</small>
+<div id="ovList" class="card" hidden>
+<div class="card-head">Daftar overlay</div>
+<div class="card-body" id="ovItems"></div>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="card-head"><strong>4) Ekspor</strong></div>
+<div class="card-body">
+<label>Skala ekspor <input id="scale" type="range" min="0.5" max="4" step="0.1" value="1"></label>
+<div class="row"><button id="exportPng" class="primary">Ekspor PNG (transparan)</button></div>
+<div class="export-info" id="exportInfo">Ukuran hasil: pilih gambar dasar dulu</div>
+<small>Ukuran akhir = ukuran gambar × skala ekspor.</small>
+</div>
+</div>
+</aside>
+<div class="card preview">
+<div class="card-head"><strong>Pratinjau</strong></div>
+<div class="card-body stage"><canvas id="c" width="1080" height="1080"></canvas></div>
+</div>
+</main>
+<script type="module">
+const $=s=>document.querySelector(s);
+const baseInp=$('#base'),shape=$('#shape'),hx=$('#holeX'),hy=$('#holeY'),hw=$('#holeW'),hh=$('#holeH'),hr=$('#holeR'),center=$('#center'),resetHole=$('#resetHole'),ovFile=$('#ovFile'),paste=$('#paste'),clearOv=$('#clearOv'),scale=$('#scale'),exp=$('#exportPng'),c=$('#c'),ctx=c.getContext('2d');
+let base=null,ov=[];
+
+function loadImg(file){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file)})}
+baseInp.addEventListener('change',async e=>{if(!e.target.files[0])return;base=await loadImg(e.target.files[0]);fit();draw();updateExportInfo()});
+shape.addEventListener('input',draw);hx.addEventListener('input',draw);hy.addEventListener('input',draw);hw.addEventListener('input',draw);hh.addEventListener('input',draw);hr.addEventListener('input',draw);scale.addEventListener('input',()=>{draw();updateExportInfo()});
+center.addEventListener('click',()=>{hx.value=50;hy.value=50;draw()});
+resetHole.addEventListener('click',()=>{shape.value='circle';hx.value=50;hy.value=50;hw.value=38;hh.value=38;hr.value=18;draw()});
+ovFile.addEventListener('change',async e=>{for(const f of Array.from(e.target.files)){const img=await loadImg(f);ov.push({img,x:c.width/2||540,y:c.height/2||540,s:Math.min(1,c.width/img.width*.4),rot:0,alpha:1});}e.target.value='';updateOvUI();draw()});
+paste.addEventListener('click',async()=>{try{const items=await navigator.clipboard.read();for(const it of items){for(const t of it.types){if(t.startsWith('image/')){const blob=await it.getType(t);const img=await loadImg(blob);ov.push({img,x:c.width/2||540,y:c.height/2||540,s:Math.min(1,c.width/img.width*.4),rot:0,alpha:1});break}}}updateOvUI();draw()}catch(err){alert('Tidak bisa paste: '+err.message)}});
+clearOv.addEventListener('click',()=>{ov=[];updateOvUI();draw()});
+
+function fit(){if(!base)return;c.width=base.naturalWidth;c.height=base.naturalHeight}
+
+function updateExportInfo(){
+  const el=$('#exportInfo');if(!el)return;
+  if(!base){el.textContent='Ukuran hasil: pilih gambar dasar dulu';return}
+  const s=parseFloat(scale.value);
+  const w=Math.round(c.width*s),h=Math.round(c.height*s);
+  const mp=(w*h/1e6).toLocaleString('id-ID',{maximumFractionDigits:2,minimumFractionDigits:2});
+  const scaleTxt=s.toLocaleString('id-ID',{maximumFractionDigits:2});
+  let html='Ukuran hasil: <strong>'+w.toLocaleString('id-ID')+' × '+h.toLocaleString('id-ID')+' px</strong> ('+mp+' MP) · skala '+scaleTxt+'× dari '+c.width.toLocaleString('id-ID')+' × '+c.height.toLocaleString('id-ID');
+  if(Math.max(w,h)>8192)html+=' <span class="warn">⚠️ ukuran sangat besar</span>';
+  el.innerHTML=html;
+}
+
+function draw(){
+  if(!base){ctx.clearRect(0,0,c.width,c.height);return}
+  const W=c.width,H=c.height;ctx.clearRect(0,0,W,H);
+  ctx.drawImage(base,0,0,W,H);
+  if(shape.value!=='none'){
+    ctx.save();ctx.globalCompositeOperation='destination-out';
+    const cx=W*hx.value/100,cy=H*hy.value/100,w=W*hw.value/100,h=H*hh.value/100;
+    ctx.beginPath();
+    if(shape.value==='circle'){const r=Math.min(w,h)/2;ctx.arc(cx,cy,r,0,Math.PI*2)}
+    else if(shape.value==='ellipse'){ctx.ellipse(cx,cy,w/2,h/2,0,0,Math.PI*2)}
+    else if(shape.value==='rounded'){const r=Math.min(w,h)*hr.value/100;roundRect(ctx,cx-w/2,cy-h/2,w,h,r)}
+    ctx.fill();ctx.restore();
+  }
+  for(const o of ov){ctx.save();ctx.globalAlpha=o.alpha;ctx.translate(o.x,o.y);ctx.rotate((o.rot*Math.PI)/180);ctx.scale(o.s,o.s);ctx.drawImage(o.img,-o.img.width/2,-o.img.height/2);ctx.restore()}
+  ctx.save();ctx.globalAlpha=.18;ctx.fillStyle='#fff';ctx.font='11px system-ui';ctx.fillText('frame-tools terisolasi',6,H-6);ctx.restore()
+}
+function roundRect(ctx,x,y,w,h,r){ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+
+function updateOvUI(){const box=$('#ovList'),items=$('#ovItems');if(ov.length===0){box.hidden=true;return}box.hidden=false;items.innerHTML='';ov.forEach((o,idx)=>{const d=document.createElement('div');d.innerHTML=`<div class="row"><strong>Overlay #${idx+1}</strong><button data-act="del" data-i="${idx}">Hapus</button></div><label>Skala <input data-act="s" data-i="${idx}" type="range" min="0.05" max="3" step="0.02" value="${o.s}"></label><label>Rotasi <input data-act="rot" data-i="${idx}" type="range" min="-180" max="180" step="1" value="${o.rot}"></label><label>Transparan <input data-act="a" data-i="${idx}" type="range" min="0" max="1" step="0.05" value="${o.alpha}"></label>`;items.appendChild(d)});items.querySelectorAll('button[data-act=del]').forEach(el=>el.addEventListener('click',e=>{ov.splice(+e.target.dataset.i,1);updateOvUI();draw()}));items.querySelectorAll('input').forEach(el=>el.addEventListener('input',onOvChange))}
+function onOvChange(e){const i=+e.target.dataset.i,act=e.target.dataset.act;if(act==='s')ov[i].s=+e.target.value;if(act==='rot')ov[i].rot=+e.target.value;if(act==='a')ov[i].alpha=+e.target.value;draw()}
+
+exp.addEventListener('click',()=>{
+  if(!base)return alert('Pilih gambar dasar dulu');
+  const out=document.createElement('canvas');
+  out.width=Math.round(c.width*scale.value);out.height=Math.round(c.height*scale.value);
+  const ox=out.getContext('2d');ox.scale(scale.value,scale.value);ox.drawImage(c,0,0);
+  const url=out.toDataURL('image/png');const a=document.createElement('a');a.href=url;a.download='twibon-frame.png';a.click();
+});
+
+c.addEventListener('pointerdown',startDrag);c.addEventListener('pointermove',moveDrag);window.addEventListener('pointerup',endDrag);
+let drag=null;
+function startDrag(ev){const r=c.getBoundingClientRect();const x=(ev.clientX-r.left)/r.width*c.width,y=(ev.clientY-r.top)/r.height*c.height;
+  for(let i=ov.length-1;i>=0;i--){const o=ov[i];const dx=x-o.x,dy=y-o.y;const hit=Math.max(40,o.img.width*o.s,o.img.height*o.s)/2;if(Math.hypot(dx,dy)<hit){drag={i,dx,dy};return}}
+}
+function moveDrag(ev){if(!drag)return;const r=c.getBoundingClientRect();const x=(ev.clientX-r.left)/r.width*c.width,y=(ev.clientY-r.top)/r.height*c.height;ov[drag.i].x=x-drag.dx;ov[drag.i].y=y-drag.dy;draw()}
+function endDrag(){drag=null}
+draw();updateExportInfo();
+</script>
+</body>
+</html>

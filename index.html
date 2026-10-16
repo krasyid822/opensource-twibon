@@ -10,7 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ccircle cx='50' cy='50' r='24' fill='none' stroke='white' stroke-width='9'/%3E%3C/svg%3E">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-<meta name="app-version" content="v2026.10.16.1621">
+<meta name="app-version" content="v2026.10.16.1918">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -128,6 +128,38 @@
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   footer{color:var(--muted);font-size:.78rem;text-align:center;padding:18px 16px 6px}
   .banner{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.83rem;color:var(--fg);margin:12px 0}
+
+  /* Baner promosi alat pembuat template.
+     Sengaja BEDA dari gaya kartu halaman: gradien warna tetap + teks putih,
+     supaya tampak sebagai ajakan terpisah, bukan bagian dari alur utama.
+     Slim (satu baris), dan bisa ditutup untuk membebaskan ruang sepenuhnya. */
+  .promo{position:relative;margin:12px 0;padding:12px 46px 12px 14px;border-radius:16px;color:#fff;
+         background:linear-gradient(115deg,#4338ca 0%,#7c3aed 48%,#c026d3 100%);
+         border:1px solid rgba(255,255,255,.14);
+         box-shadow:0 12px 28px -16px rgba(67,56,202,.85);overflow:hidden}
+  /* kilau dekoratif agar terasa "spanduk", bukan kartu biasa */
+  .promo::after{content:"";position:absolute;inset:0;pointer-events:none;
+         background:radial-gradient(130px 90px at 88% -10%,rgba(255,255,255,.3),transparent 70%)}
+  .promo-body{display:flex;align-items:center;gap:12px;flex-wrap:wrap;text-decoration:none;color:#fff}
+  .promo-ic{flex:0 0 auto;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+            font-size:1.25rem;line-height:1;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22)}
+  .promo-txt{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .promo-txt b{font-weight:700;font-size:.92rem;letter-spacing:-.01em}
+  .promo-txt small{color:rgba(255,255,255,.85);font-size:.79rem}
+  .promo-cta{flex:0 0 auto;position:relative;z-index:1;background:#fff;color:#4338ca;font-weight:700;font-size:.82rem;
+             padding:8px 14px;border-radius:999px;white-space:nowrap}
+  .promo-body:hover .promo-cta{background:#f5f3ff}
+  .promo-body:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:10px}
+  .promo-x{position:absolute;top:7px;right:7px;z-index:2;width:28px;height:28px;padding:0;cursor:pointer;
+           display:grid;place-items:center;border-radius:50%;font-size:.9rem;line-height:1;
+           background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#fff}
+  .promo-x:hover{background:rgba(255,255,255,.32)}
+  .promo-x:focus-visible{outline:2px solid #fff;outline-offset:1px}
+  @media (max-width:560px){
+    .promo{padding:11px 42px 11px 11px}
+    .promo-txt small{display:none}          /* hemat ruang: di ponsel cukup judulnya */
+    .promo-cta{flex:1 1 100%;text-align:center}
+  }
   .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:5px;padding:1px 5px;font-size:.78rem}
 
   /* cegah kartu setelan meluber ke samping */
@@ -185,6 +217,19 @@
   <div class="banner">
     <b>Semua gratis, tanpa batas.</b> Tanpa watermark, tanpa iklan, tanpa login, tanpa server.
     Foto hanya diproses di perangkatmu sendiri (template GPL-3.0).
+  </div>
+
+  <!-- ===== Baner promosi: pembuat template/frame (bisa ditutup) ===== -->
+  <div class="promo" id="promo" role="region" aria-label="Promosi: pembuat template twibbon">
+    <a class="promo-body" href="./create-template-from-image.html">
+      <span class="promo-ic" aria-hidden="true">🧩</span>
+      <span class="promo-txt">
+        <b>Buat template twibbon sendiri</b>
+        <small>Lubangi gambar, tambah overlay &amp; teks, ekspor PNG transparan — gratis, di browser.</small>
+      </span>
+      <span class="promo-cta">Buka alat →</span>
+    </a>
+    <button class="promo-x" id="promoClose" type="button" aria-label="Tutup promosi" title="Tutup promosi">✕</button>
   </div>
 
   <!-- ===== Pemilih berkas ===== -->
@@ -979,6 +1024,12 @@
 
     $('#btnPng').onclick = () => download('png');
     $('#btnJpg').onclick = () => download('jpg');
+
+    // Baner promosi: cukup dihapus dari DOM agar ruangnya kembali sepenuhnya.
+    // Disengaja TANPA localStorage/cookie (selaras prinsip "tak ada data disimpan"),
+    // jadi baner muncul lagi saat halaman dimuat ulang.
+    const promo = $('#promo');
+    if (promo) $('#promoClose').onclick = () => promo.remove();
 
     // drag & drop di seluruh halaman
     const stop = (e) => { e.preventDefault(); };

@@ -19,7 +19,7 @@
  *
  * Naikkan VERSION bila daftar aset di SHELL berubah.
  */
-const VERSION = 'v2026.10.16.1621';
+const VERSION = 'v2026.10.16.1918';
 const CACHE = `twibon-${VERSION}`;
 const SHELL = [
   './',
