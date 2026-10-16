@@ -1,0 +1,58 @@
+name: Deploy ke GitHub Pages
+
+# Deploy otomatis setiap kali push. Aplikasi ini murni statis
+# (satu berkas index.html), jadi tidak ada langkah build sama sekali —
+# cukup checkout lalu unggah seluruh direktori sebagai artefak Pages.
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+      - "rea-install.log"
+  workflow_dispatch:
+
+# Izinkan workflow ini memublikasikan ke Pages dengan token sementara.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Hanya satu deploy berjalan; pembaruan berikutnya menggantikan yang tertunda.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bersihkan berkas yang tidak perlu diunggah
+        run: rm -rf .git rea-install.log
+
+      # Catatan: langkah ini TIDAK mengaktifkan Pages dari nol.
+      # Aktifkan sekali saja lewat CLI `gh api` atau UI repo (lihat README).
+      # Opsi sepenuhnya otomatis: hapus komentar 3 baris di bawah, tapi wajib
+      # memakai token PAT (bukan GITHUB_TOKEN), mis. disimpan sebagai secret
+      # GH_PAGES_TOKEN dengan scope `repo` / permission "Pages: write":
+      #   with:
+      #     token: ${{ secrets.GH_PAGES_TOKEN }}
+      #     enablement: true
+      - name: Konfigurasi Pages
+        uses: actions/configure-pages@v5
+
+      - name: Unggah artefak situs
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."
+
+      - name: Deploy ke Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

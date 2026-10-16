@@ -1,0 +1,8 @@
+# Log pemasangan REA (hanya catatan lokal, tidak perlu ikut ke repo)
+*.log
+
+# Berkas sistem / editor
+.DS_Store
+Thumbs.db
+*.swp
+node_modules/

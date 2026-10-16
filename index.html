@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#4f46e5">
+<title>Twibon — Buat Twibbon Gratis Tanpa Watermark</title>
+<meta name="description" content="Tempel foto ke dalam template twibbon (PNG transparan) dengan mudah, lalu unduh hasilnya dalam kualitas penuh. Gratis, tanpa watermark, tanpa iklan, tanpa login, tanpa server.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ccircle cx='50' cy='50' r='24' fill='none' stroke='white' stroke-width='9'/%3E%3C/svg%3E">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Twibon">
+<style>
+  :root{
+    --bg:#f3f4f6; --card:#ffffff; --fg:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#4f46e5; --accent-fg:#ffffff; --soft:#eef2ff; --check:#e9eaee;
+    --ok:#059669; --warn:#b45309;
+    --radius:14px; --shadow:0 1px 2px rgba(16,24,40,.06),0 10px 26px -14px rgba(16,24,40,.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b1020; --card:#141a2e; --fg:#e8eaf1; --muted:#9aa3b8; --line:#26304a;
+           --accent:#818cf8; --accent-fg:#0b1020; --soft:#1d2440; --check:#242c46;
+           --ok:#34d399; --warn:#fbbf24;
+           --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 30px -16px rgba(0,0,0,.8); }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--fg); -webkit-text-size-adjust:100%;
+    font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  }
+  a{color:var(--accent)}
+  header{padding:18px 16px 6px;text-align:center}
+  header h1{margin:0;font-size:1.4rem;letter-spacing:-.01em;display:flex;gap:.5rem;align-items:center;justify-content:center}
+  header p{margin:6px 0 0;color:var(--muted);font-size:.86rem}
+  .wrap{max-width:980px;margin:0 auto;padding:0 14px}
+
+  .grid{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+  @media (max-width:620px){ .grid{grid-template-columns:1fr} }
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .picker{padding:14px;display:flex;gap:12px;align-items:center;flex-direction:column;text-align:center}
+  .picker .ic{width:46px;height:46px;border-radius:12px;background:var(--soft);display:grid;place-items:center;font-size:1.4rem}
+  .picker b{font-weight:650}
+  .picker small{color:var(--muted);display:block;margin-top:2px}
+  .thumb{width:100%;aspect-ratio:1;border-radius:10px;border:1px dashed var(--line);
+         background:conic-gradient(var(--check) 0 25%, transparent 0 50%) 0 0/16px 16px, transparent;
+         object-fit:contain;display:block}
+  .thumb.has{border-style:solid}
+
+  button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);
+         border-radius:10px;padding:9px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;justify-content:center}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+  button.ghost{background:transparent}
+  button.sm{padding:6px 9px;font-size:.85rem}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px}
+
+  .stagewrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+             box-shadow:var(--shadow);padding:10px}
+  .stage{display:flex;align-items:center;justify-content:center;height:clamp(230px,50vh,600px)}
+  canvas#preview{
+    display:block;touch-action:none;border-radius:8px;cursor:grab;max-width:100%;
+    background-color:transparent;
+    background-image:
+      linear-gradient(45deg,var(--check) 25%,transparent 25%,transparent 75%,var(--check) 75%),
+      linear-gradient(45deg,var(--check) 25%,transparent 25%,transparent 75%,var(--check) 75%);
+    background-size:20px 20px;background-position:0 0,10px 10px;
+  }
+  canvas#preview:active{cursor:grabbing}
+  .hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(17,24,39,.86);color:#fff;
+        padding:7px 12px;border-radius:999px;font-size:.8rem;pointer-events:none;transition:opacity .5s;white-space:nowrap}
+  .hint.gone{opacity:0}
+
+  .meta{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 2px 0;color:var(--muted);font-size:.82rem}
+  .chips{display:flex;gap:8px;align-items:center}
+  .chip{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);object-fit:contain;background:
+        conic-gradient(var(--check) 0 25%, transparent 0 50%) 0 0/12px 12px, var(--card)}
+
+  .panel{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  label.row{display:flex;align-items:center;gap:10px;font-size:.86rem}
+  label.row span:first-child{min-width:88px;color:var(--muted)}
+  label.row input[type=range]{flex:1;accent-color:var(--accent)}
+  label.row input[type=color]{width:38px;height:30px;padding:0;border:1px solid var(--line);border-radius:8px;background:none}
+  input[type=text],select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:inherit;min-width:0}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  details.panel>summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  details.panel>summary::-webkit-details-marker{display:none}
+  details.panel>summary::after{content:"▾";color:var(--muted)}
+  details.panel[open]>summary::after{content:"▴"}
+  fieldset{border:1px solid var(--line);border-radius:10px;margin:0;padding:10px 12px;display:flex;flex-direction:column;gap:9px}
+  legend{color:var(--muted);font-size:.8rem;padding:0 6px}
+
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--card) 92%,transparent);
+       backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+  .bar .in{max-width:980px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .bar .info{font-size:.8rem;color:var(--muted)}
+  .bar .acts{display:flex;gap:8px;flex:1 1 260px;justify-content:flex-end}
+
+  .toast{position:fixed;left:50%;top:16px;transform:translate(-50%,-140%);z-index:50;background:var(--fg);color:var(--bg);
+         padding:10px 14px;border-radius:999px;font-size:.86rem;box-shadow:var(--shadow);transition:transform .28s;max-width:92vw;text-align:center;
+         display:flex;gap:10px;align-items:center;justify-content:center}
+  .toast.show{transform:translate(-50%,0)}
+  .toast-act{background:transparent;border:1px solid currentColor;color:inherit;border-radius:999px;
+             padding:3px 11px;font-size:.84rem;font-weight:600;cursor:pointer;white-space:nowrap}
+  .toast-act:hover{border-color:currentColor}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  footer{color:var(--muted);font-size:.78rem;text-align:center;padding:18px 16px 6px}
+  .banner{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.83rem;color:var(--fg);margin:12px 0}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:5px;padding:1px 5px;font-size:.78rem}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="currentColor" opacity=".15"/><circle cx="50" cy="50" r="24" fill="none" stroke="currentColor" stroke-width="9"/></svg>
+    Twibon
+  </h1>
+  <p>Isi bagian kosong template twibbon dengan fotomu, lalu unduh — gratis, tanpa watermark.</p>
+</header>
+
+<main class="wrap">
+
+  <div class="banner">
+    <b>Semua gratis, tanpa batas.</b> Tanpa watermark, tanpa iklan, tanpa login, tanpa server.
+    Foto hanya diproses di perangkatmu sendiri (template GPL-3.0).
+  </div>
+
+  <!-- ===== Pemilih berkas ===== -->
+  <section id="picker" class="grid" aria-label="Pilih berkas">
+    <div class="card picker">
+      <div class="ic" aria-hidden="true">🖼️</div>
+      <div>
+        <b>1. Template twibbon</b>
+        <small>Gambar PNG transparan (bagian tengah kosong)</small>
+      </div>
+      <img id="tplThumb" class="thumb" alt="Pratinjau template" hidden>
+      <div class="btnrow">
+        <button id="btnTpl" class="primary">Pilih template</button>
+        <button id="btnDemo" class="ghost sm" type="button">Pakai contoh</button>
+      </div>
+      <input id="fileTpl" type="file" accept="image/*" class="sr" aria-label="Pilih berkas template">
+    </div>
+
+    <div class="card picker">
+      <div class="ic" aria-hidden="true">📷</div>
+      <div>
+        <b>2. Fotomu</b>
+        <small>JPG, PNG, atau WEBP</small>
+      </div>
+      <img id="photoThumb" class="thumb" alt="Pratinjau foto" hidden>
+      <div class="btnrow">
+        <button id="btnPhoto" class="primary">Pilih foto</button>
+        <button id="btnCamera" class="ghost sm" type="button">Kamera</button>
+      </div>
+      <input id="filePhoto" type="file" accept="image/*" class="sr" aria-label="Pilih berkas foto">
+      <input id="fileCamera" type="file" accept="image/*" capture="user" class="sr" aria-label="Ambil foto dengan kamera">
+    </div>
+  </section>
+
+  <!-- ===== Editor ===== -->
+  <section id="editor" hidden aria-label="Editor">
+    <div class="stagewrap">
+      <div class="stage" id="stage">
+        <canvas id="preview" aria-label="Pratinjau twibbon. Geser untuk mengatur posisi foto, cubit atau gulir untuk memperbesar."></canvas>
+      </div>
+      <div class="hint" id="hint">Geser untuk mengatur · Cubit / gulir untuk zoom</div>
+    </div>
+
+    <div class="meta">
+      <div class="chips">
+        <img id="chipTpl" class="chip" alt="Template saat ini">
+        <img id="chipPhoto" class="chip" alt="Foto saat ini">
+        <span>Ukuran: <b id="dimSize">–</b></span>
+      </div>
+      <span id="holeInfo"></span>
+    </div>
+
+    <div class="card panel" style="margin-top:10px">
+      <div class="btnrow">
+        <button id="btnAuto" class="primary sm">✨ Otomatis (isi lubang)</button>
+        <button id="btnCover" class="sm">⤢ Isi penuh</button>
+        <button id="btnRotL" class="sm">⟲ 90°</button>
+        <button id="btnRotR" class="sm">⟳ 90°</button>
+        <button id="btnFlip" class="sm">⇄ Cermin</button>
+        <button id="btnReset" class="sm">↺ Reset</button>
+      </div>
+      <label class="row"><span>Zoom</span><input id="zoom" type="range" min="10" max="800" value="100"><b id="zoomVal" style="min-width:52px;text-align:right">100%</b></label>
+      <div class="btnrow">
+        <button id="btnSwapTpl" class="ghost sm">Ganti template</button>
+        <button id="btnSwapPhoto" class="ghost sm">Ganti foto</button>
+      </div>
+    </div>
+
+    <details class="card panel" style="margin-top:10px">
+      <summary>Lanjutan (filter, teks, latar, kualitas)</summary>
+      <fieldset>
+        <legend>Filter foto</legend>
+        <label class="row"><span>Kecerahan</span><input id="fBright" type="range" min="40" max="180" value="100"><b id="vBright" style="min-width:48px;text-align:right">100</b></label>
+        <label class="row"><span>Kontras</span><input id="fContrast" type="range" min="40" max="180" value="100"><b id="vContrast" style="min-width:48px;text-align:right">100</b></label>
+        <label class="row"><span>Saturasi</span><input id="fSaturate" type="range" min="0" max="200" value="100"><b id="vSaturate" style="min-width:48px;text-align:right">100</b></label>
+        <label class="row"><span>Hitam-putih</span><input id="fGray" type="range" min="0" max="100" value="0"><b id="vGray" style="min-width:48px;text-align:right">0</b></label>
+        <div class="btnrow"><button id="btnFilterReset" class="ghost sm">Reset filter</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Teks (bebas, tanpa biaya)</legend>
+        <input id="txt" type="text" placeholder="Nama / angkatan / acara" maxlength="80">
+        <div class="grid2">
+          <label class="row"><span>Ukuran</span><input id="txtSize" type="range" min="3" max="20" value="8"><b id="vTxtSize" style="min-width:44px;text-align:right">8</b></label>
+          <label class="row"><span>Posisi</span>
+            <select id="txtAnchor">
+              <option value="tl">Kiri atas</option>
+              <option value="tc">Tengah atas</option>
+              <option value="tr">Kanan atas</option>
+              <option value="ml">Kiri</option>
+              <option value="mc">Tengah</option>
+              <option value="mr">Kanan</option>
+              <option value="bl">Kiri bawah</option>
+              <option value="bc" selected>Tengah bawah</option>
+              <option value="br">Kanan bawah</option>
+            </select>
+          </label>
+          <label class="row"><span>Warna</span><input id="txtColor" type="color" value="#ffffff"></label>
+          <label class="row"><span>Garis tepi</span><input id="txtOutline" type="color" value="#000000"></label>
+          <label class="row"><span>Tebal tepi</span><input id="txtOWidth" type="range" min="0" max="20" value="6"><b id="vTxtOW" style="min-width:44px;text-align:right">0.6</b></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Latar belakang</legend>
+        <label class="row"><span>Isi latar</span><input id="bgOn" type="checkbox"> <input id="bgColor" type="color" value="#ffffff"></label>
+        <p style="margin:0;color:var(--muted);font-size:.78rem">Biarkan kosong agar latar tetap transparan (PNG). JPEG selalu memakai latar berwarna.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Susunan &amp; kualitas</legend>
+        <label class="row"><span>Template di atas foto</span><input id="tplOnTop" type="checkbox" checked></label>
+        <label class="row"><span>Skala unduh</span>
+          <select id="exportScale">
+            <option value="0.5">0,5× (kecil)</option>
+            <option value="1" selected>1× (ukuran template)</option>
+            <option value="2">2× (diperbesar)</option>
+          </select>
+        </label>
+      </fieldset>
+    </details>
+
+    <footer>
+      Dibuat dengan kanvas browser — tidak ada unggahan ke server mana pun.
+      Kode sumber bebas di bawah GNU GPL-3.0.
+    </footer>
+  </section>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <div class="in">
+    <span class="info">Hasil: <b id="outSize">–</b> · <span id="outFormat">PNG transparan</span></span>
+    <div class="acts">
+      <button id="btnPng" class="primary">⬇ Unduh PNG</button>
+      <button id="btnJpg">⬇ Unduh JPG</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastAct" class="toast-act" hidden></button></div>
+<noscript><div class="wrap"><p><b>JavaScript diperlukan.</b> Aplikasi ini memproses gambar di browser, jadi JavaScript harus aktif.</p></div></noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ───────────────────────── util ───────────────────────── */
+  const $ = (s, r = document) => r.querySelector(s);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const num = (n, d = 0) => n.toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const slug = (s) => (s || 'twibbon').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40).toLowerCase() || 'twibbon';
+  const stamp = () => { const d = new Date(), p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
+  const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
+  const SUPPORTS_FILTER = 'filter' in CanvasRenderingContext2D.prototype;
+
+  let toastTimer;
+  function toast(msg, action) {
+    const t = $('#toast'), b = $('#toastAct');
+    $('#toastMsg').textContent = msg;
+    if (action) {
+      b.hidden = false; b.textContent = action.label;
+      b.onclick = () => { b.hidden = true; t.classList.remove('show'); action.run(); };
+    } else { b.hidden = true; b.onclick = null; }
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    if (!action) toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  /* ───────────────────────── state ───────────────────────── */
+  const S = {
+    template: null,          // { img, name, w, h }
+    photo: null,             // { img, name, w, h }
+    cx: 0, cy: 0, ps: 1,     // pusat & skala foto dalam koordinat template (px desain)
+    coverScale: 1,           // skala referensi "isi penuh" (= 100% pada slider zoom)
+    rot: 0, flip: 1,
+    hole: null,              // { x, y, w, h, coverage } area transparan terdeteksi
+    templateOnTop: true,
+    filter: { brightness: 100, contrast: 100, saturate: 100, grayscale: 0 },
+    text: { value: '', size: 8, color: '#ffffff', outline: '#000000', ow: 6, anchor: 'bc' },
+    bg: { enabled: false, color: '#ffffff' },
+    exportScale: 1,
+    view: 1, dpr: 1
+  };
+
+  const canvas = $('#preview');
+  const ctx = canvas.getContext('2d');
+  const stage = $('#stage');
+
+  /* ───────────────────────── memuat gambar ───────────────────────── */
+  async function decode(file, cap) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = () => rej(new Error('decode'));
+        i.src = url;
+      });
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) throw new Error('decode');
+      if (cap && Math.max(w, h) > cap) {           // batasi memori pada perangkat kecil
+        const k = cap / Math.max(w, h);
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        w = c.width; h = c.height;
+        return { img: c, name: file.name || 'gambar', w, h };
+      }
+      return { img, name: file.name || 'gambar', w, h };
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  async function readFile(file, kind) {
+    if (!file || !/^image\//.test(file.type)) { toast('Berkas harus berupa gambar.'); return; }
+    try {
+      const cap = kind === 'photo' ? 5000 : 6000;
+      const loaded = await decode(file, cap);
+      if (kind === 'template') setTemplate(loaded); else setPhoto(loaded);
+    } catch (e) {
+      toast('Gambar tidak bisa dibaca. Coba format JPG atau PNG.');
+    }
+  }
+
+  function setTemplate(t) {
+    S.template = t;                            // mengganti template tetap mempertahankan foto
+    S.hole = detectHole(t.img);
+    const thumb = imgToDataURL(t, 320);
+    $('#tplThumb').hidden = false; $('#tplThumb').src = thumb;
+    $('#chipTpl').src = thumb;
+    $('#picker').hidden = true;
+    $('#editor').hidden = false;
+    $('#bar').hidden = false;
+    $('#holeInfo').textContent = S.hole ? 'Lubang terdeteksi ✓' : '';
+    if (S.photo) fitPhoto(true); else layout();
+  }
+
+  function setPhoto(p) {
+    S.photo = p;
+    const thumb = imgToDataURL(p, 320);
+    $('#photoThumb').hidden = false; $('#photoThumb').src = thumb;
+    $('#chipPhoto').src = thumb;
+    computeCoverScale();
+    fitPhoto(true);                       // otomatis: isi lubang kalau terdeteksi, jika tidak isi penuh
+    $('#hint').classList.remove('gone');
+    setTimeout(() => $('#hint').classList.add('gone'), 4200);
+  }
+
+  function imgToDataURL(rec, max = 0) {
+    const src = rec.img;
+    let w = rec.w, h = rec.h;
+    if (max && Math.max(w, h) > max) { const k = max / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d');
+    x.drawImage(src, 0, 0, w, h);
+    try { return c.toDataURL('image/png'); } catch { return ''; }
+  }
+
+  /* ───────────────────────── deteksi lubang transparan ───────────────────────── */
+  function detectHole(img) {
+    const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+    const maxSide = 256, k = Math.min(1, maxSide / Math.max(W, H));
+    const w = Math.max(1, Math.round(W * k)), h = Math.max(1, Math.round(H * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0, w, h);
+    let d;
+    try { d = x.getImageData(0, 0, w, h).data; } catch { return null; }
+    const trans = (i) => d[i * 4 + 3] < 24;
+
+    // benih: piksel transparan terdekat ke titik tengah (harus dekat pusat, supaya sudut luar tembus pandang tidak salah dianggap lubang)
+    const cxp = w / 2 - .5, cyp = h / 2 - .5;
+    let seed = -1, best = Infinity;
+    for (let i = 0; i < w * h; i++) {
+      if (!trans(i)) continue;
+      const px = i % w, py = (i - px) / w;
+      const dist = (px - cxp) ** 2 + (py - cyp) ** 2;
+      if (dist < best) { best = dist; seed = i; }
+    }
+    const limit = (0.35 * Math.min(w, h)) ** 2;
+    if (seed < 0 || best > limit) return null;
+
+    // banjir (flood fill) dari benih
+    const seen = new Uint8Array(w * h);
+    const stack = [seed]; seen[seed] = 1;
+    let minX = seed % w, maxX = seed % w, minY = (seed - seed % w) / w, maxY = minY, count = 0;
+    while (stack.length) {
+      const i = stack.pop(), px = i % w, py = (i - px) / w;
+      count++;
+      if (px < minX) minX = px; if (px > maxX) maxX = px;
+      if (py < minY) minY = py; if (py > maxY) maxY = py;
+      if (px > 0 && !seen[i - 1] && trans(i - 1)) { seen[i - 1] = 1; stack.push(i - 1); }
+      if (px < w - 1 && !seen[i + 1] && trans(i + 1)) { seen[i + 1] = 1; stack.push(i + 1); }
+      if (py > 0 && !seen[i - w] && trans(i - w)) { seen[i - w] = 1; stack.push(i - w); }
+      if (py < h - 1 && !seen[i + w] && trans(i + w)) { seen[i + w] = 1; stack.push(i + w); }
+    }
+    const coverage = count / (w * h);
+    if (coverage > 0.95) return null;                     // praktis seluruh gambar transparan
+    const s = 1 / k;
+    return { x: minX * s, y: minY * s, w: (maxX - minX + 1) * s, h: (maxY - minY + 1) * s, coverage };
+  }
+
+  /* ───────────────────────── penyesuaian ───────────────────────── */
+  function computeCoverScale() {
+    if (!S.template || !S.photo) return;
+    S.coverScale = Math.max(S.template.w / S.photo.w, S.template.h / S.photo.h);
+  }
+
+  function fitCover() {                       // isi seluruh kanvas
+    if (!S.template || !S.photo) return;
+    computeCoverScale();
+    S.ps = S.coverScale; S.cx = S.template.w / 2; S.cy = S.template.h / 2; S.rot = 0; S.flip = 1;
+    syncUI(); render();
+  }
+
+  function fitHole() {                        // isi area transparan (lubang)
+    if (!S.template || !S.photo) return;
+    if (!S.hole) { toast('Tidak ada lubang transparan yang terdeteksi.'); return; }
+    computeCoverScale();
+    S.ps = Math.max(S.hole.w / S.photo.w, S.hole.h / S.photo.h);
+    S.cx = S.hole.x + S.hole.w / 2; S.cy = S.hole.y + S.hole.h / 2;
+    S.rot = 0; S.flip = 1;
+    syncUI(); render();
+  }
+
+  function fitPhoto(auto) {                   // dipanggil saat foto dimuat
+    if (auto && S.hole) {
+      fitHole();
+      toast('Foto otomatis diposisikan ke lubang template.');
+    } else {
+      fitCover();
+    }
+  }
+
+  function resetAll() {
+    S.rot = 0; S.flip = 1;
+    S.filter = { brightness: 100, contrast: 100, saturate: 100, grayscale: 0 };
+    Object.assign(S.text, { value: '', size: 8, color: '#ffffff', outline: '#000000', ow: 6, anchor: 'bc' });
+    S.bg.enabled = false; S.bg.color = '#ffffff'; S.exportScale = 1; S.templateOnTop = true;
+    $('#txt').value = ''; $('#bgOn').checked = false; $('#tplOnTop').checked = true;
+    $('#bgColor').value = '#ffffff'; $('#txtColor').value = '#ffffff'; $('#txtOutline').value = '#000000';
+    $('#txtAnchor').value = 'bc'; $('#exportScale').value = '1';
+    fitCover(); syncUI(); toast('Direset.');
+  }
+
+  function zoomAt(dx, dy, factor) {
+    if (!S.photo) return;
+    const min = S.coverScale * 0.1, max = S.coverScale * 25;
+    const next = clamp(S.ps * factor, min, max);
+    const k = next / S.ps;
+    S.cx = dx - (dx - S.cx) * k;
+    S.cy = dy - (dy - S.cy) * k;
+    S.ps = next;
+    syncUI(); render();
+  }
+
+  /* ───────────────────────── menggambar ───────────────────────── */
+  function filterCss() {
+    const f = S.filter;
+    return `brightness(${f.brightness}%) contrast(${f.contrast}%) saturate(${f.saturate}%) grayscale(${f.grayscale}%)`;
+  }
+
+  function anchorPoint(a, W, H, pad) {
+    const v = a[0], h = a[1];
+    return {
+      x: h === 'l' ? pad : h === 'r' ? W - pad : W / 2,
+      y: v === 't' ? pad : v === 'b' ? H - pad : H / 2,
+      align: h === 'l' ? 'left' : h === 'r' ? 'right' : 'center',
+      base: v === 't' ? 'top' : v === 'b' ? 'bottom' : 'middle'
+    };
+  }
+
+  function drawText(c) {
+    const txt = S.text.value.trim();
+    if (!txt) return;
+    const W = S.template.w, H = S.template.h;
+    const pad = W * 0.035;
+    const p = anchorPoint(S.text.anchor, W, H, pad);
+    let size = W * S.text.size / 100;
+    c.save();
+    c.textAlign = p.align; c.textBaseline = p.base; c.lineJoin = 'round'; c.miterLimit = 2;
+    // perkecil otomatis bila terlalu lebar
+    for (let i = 0; i < 40; i++) {
+      c.font = `700 ${size}px ${FONT}`;
+      if (c.measureText(txt).width <= W - pad * 2 || size <= W * 0.02) break;
+      size *= 0.94;
+    }
+    if (S.text.ow > 0) {
+      c.lineWidth = Math.max(1, size * S.text.ow / 10);
+      c.strokeStyle = S.text.outline;
+      c.strokeText(txt, p.x, p.y);
+    }
+    c.fillStyle = S.text.color;
+    c.fillText(txt, p.x, p.y);
+    c.restore();
+  }
+
+  function draw(dst) {                         // menggambar komposisi dalam koordinat desain
+    const t = S.template, p = S.photo, W = t.w, H = t.h;
+    const fillBg = S.bg.enabled;
+    if (fillBg) { dst.save(); dst.fillStyle = S.bg.color; dst.fillRect(0, 0, W, H); dst.restore(); }
+
+    const photo = () => {
+      if (!p) return;
+      dst.save();
+      if (SUPPORTS_FILTER) dst.filter = filterCss();
+      dst.translate(S.cx, S.cy);
+      dst.rotate(S.rot * Math.PI / 180);
+      dst.scale(S.ps * S.flip, S.ps);
+      dst.drawImage(p.img, -p.w / 2, -p.h / 2, p.w, p.h);
+      dst.restore();
+    };
+    const tpl = () => dst.drawImage(t.img, 0, 0, W, H);
+
+    if (S.templateOnTop) { photo(); tpl(); } else { tpl(); photo(); }
+    drawText(dst);
+  }
+
+  function layout() {
+    if (!S.template) return;
+    const W = S.template.w, H = S.template.h;
+    const aw = stage.clientWidth, ah = stage.clientHeight;
+    const view = Math.max(0.0001, Math.min(aw / W, ah / H));
+    const cssW = Math.max(1, Math.round(W * view)), cssH = Math.max(1, Math.round(H * view));
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
+    S.view = view; S.dpr = dpr;
+    render();
+  }
+
+  function render() {
+    if (!S.template) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const k = S.view * S.dpr;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    draw(ctx);
+  }
+
+  /* ───────────────────────── gerakan (pointer) ───────────────────────── */
+  const pointers = new Map();
+  let gesture = null;
+
+  const toDesign = (clientX, clientY) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: (clientX - r.left) / S.view, y: (clientY - r.top) / S.view };
+  };
+
+  function snapshot() {
+    const pts = [...pointers.values()];
+    if (pts.length === 1) {
+      gesture = { type: 'pan', start: { x: pts[0].x, y: pts[0].y }, snap: { cx: S.cx, cy: S.cy } };
+    } else if (pts.length >= 2) {
+      const [a, b] = pts;
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      gesture = {
+        type: 'pinch',
+        dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+        angle: Math.atan2(b.y - a.y, b.x - a.x),
+        mid,
+        snap: { cx: S.cx, cy: S.cy, ps: S.ps, rot: S.rot }
+      };
+    } else gesture = null;
+  }
+
+  function apply() {
+    if (!gesture || !S.photo) return;
+    const pts = [...pointers.values()];
+    if (gesture.type === 'pan' && pts.length === 1) {
+      const dx = (pts[0].x - gesture.start.x) / S.view;
+      const dy = (pts[0].y - gesture.start.y) / S.view;
+      S.cx = gesture.snap.cx + dx; S.cy = gesture.snap.cy + dy;
+    } else if (gesture.type === 'pinch' && pts.length >= 2) {
+      const [a, b] = pts;
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const min = S.coverScale * 0.1, max = S.coverScale * 25;
+      S.ps = clamp(gesture.snap.ps * (dist / gesture.dist), min, max);
+      S.rot = gesture.snap.rot + (angle - gesture.angle) * 180 / Math.PI;
+      const d = toDesign(mid.x, mid.y), d0 = toDesign(gesture.mid.x, gesture.mid.y);
+      S.cx = gesture.snap.cx + (d.x - d0.x);
+      S.cy = gesture.snap.cy + (d.y - d0.y);
+    }
+    syncUI(false); render();
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!S.photo) return;
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    snapshot();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    apply();
+  });
+  const endPointer = (e) => { pointers.delete(e.pointerId); snapshot(); };
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+
+  canvas.addEventListener('wheel', (e) => {
+    if (!S.photo) return;
+    e.preventDefault();
+    const d = toDesign(e.clientX, e.clientY);
+    zoomAt(d.x, d.y, Math.exp(-e.deltaY * 0.0015));
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    if ($('#editor').hidden || !S.photo) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    const step = e.shiftKey ? S.template.w * 0.05 : S.template.w * 0.01;
+    const k = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (k) { S.cx += k[0]; S.cy += k[1]; e.preventDefault(); render(); return; }
+    if (e.key === '+' || e.key === '=') zoomAt(S.template.w / 2, S.template.h / 2, 1.1);
+    else if (e.key === '-') zoomAt(S.template.w / 2, S.template.h / 2, 1 / 1.1);
+    else if (e.key === 'r' || e.key === 'R') resetAll();
+  });
+
+  /* ───────────────────────── unduh ───────────────────────── */
+  async function download(format) {
+    if (!S.template || !S.photo) { toast('Lengkapi template dan foto dulu.'); return; }
+    const forcedBg = format === 'jpg';
+    const prevBg = S.bg.enabled;
+    if (forcedBg) { S.bg.enabled = true; $('#bgOn').checked = true; render(); }
+
+    const scale = S.exportScale;
+    const W = Math.round(S.template.w * scale), H = Math.round(S.template.h * scale);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d');
+    x.setTransform(scale, 0, 0, scale, 0, 0);
+    draw(x);
+
+    const type = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    const blob = await new Promise((res) => c.toBlob(res, type, 0.95));
+    if (!blob) { toast('Gagal membuat berkas. Coba skala lebih kecil.'); S.bg.enabled = prevBg; return; }
+
+    const name = `${slug(S.template.name)}-${stamp()}.${format === 'jpg' ? 'jpg' : 'png'}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a);
+    if (typeof a.download === 'undefined') { window.open(url, '_blank'); toast('Tekan lama gambar untuk menyimpan.'); }
+    else { a.click(); toast('Tersimpan: ' + name); }
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 20000);
+  }
+
+  /* ───────────────────────── template contoh ───────────────────────── */
+  function demoTemplate() {
+    const s = 1080;
+    const c = document.createElement('canvas'); c.width = c.height = s;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, s, s);
+    g.addColorStop(0, '#1e3a8a'); g.addColorStop(1, '#7c3aed');
+    x.fillStyle = g;
+    x.beginPath(); x.rect(0, 0, s, s); x.arc(s / 2, s / 2, s * 0.34, 0, Math.PI * 2, true);
+    x.fill('evenodd');                          // cincin dengan lubang transparan di tengah
+    x.fillStyle = 'rgba(255,255,255,.16)';
+    x.fillRect(0, s * 0.055, s, s * 0.075);
+    x.fillRect(0, s * 0.87, s, s * 0.075);
+    x.fillStyle = '#ffffff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = `700 ${s * 0.058}px ${FONT}`;
+    x.fillText('CONTOH TWIBBON', s / 2, s * 0.093);
+    x.font = `500 ${s * 0.038}px ${FONT}`;
+    x.fillText('ganti dengan template milikmu', s / 2, s * 0.907);
+    return c.toDataURL('image/png');
+  }
+
+  function loadDataURL(dataUrl, name, kind) {
+    return new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res({ img: i, name, w: i.naturalWidth, h: i.naturalHeight });
+      i.onerror = rej;
+      i.src = dataUrl;
+    });
+  }
+
+  /* ───────────────────────── UI ───────────────────────── */
+  function syncUI(sliders = true) {
+    if (!S.template || !S.photo) return;
+    if (sliders) {
+      const pct = Math.round(S.ps / S.coverScale * 100);
+      $('#zoom').value = String(clamp(pct, 10, 800));
+    }
+    $('#zoomVal').textContent = Math.round(S.ps / S.coverScale * 100) + '%';
+    const scale = S.exportScale;
+    $('#outSize').textContent = `${num(Math.round(S.template.w * scale))} × ${num(Math.round(S.template.h * scale))} px`;
+    $('#outFormat').textContent = (S.bg.enabled ? 'JPG/latar berwarna' : 'PNG transparan');
+    $('#dimSize').textContent = `${num(S.template.w)} × ${num(S.template.h)}`;
+  }
+
+  function wire() {
+    $('#btnTpl').onclick = () => $('#fileTpl').click();
+    $('#btnPhoto').onclick = () => $('#filePhoto').click();
+    $('#btnCamera').onclick = () => $('#fileCamera').click();
+    $('#btnSwapTpl').onclick = () => $('#fileTpl').click();
+    $('#btnSwapPhoto').onclick = () => $('#filePhoto').click();
+
+    $('#fileTpl').onchange = (e) => { readFile(e.target.files[0], 'template'); e.target.value = ''; };
+    $('#filePhoto').onchange = (e) => { readFile(e.target.files[0], 'photo'); e.target.value = ''; };
+    $('#fileCamera').onchange = (e) => { readFile(e.target.files[0], 'photo'); e.target.value = ''; };
+
+    $('#btnDemo').onclick = async () => {
+      try {
+        const t = await loadDataURL(demoTemplate(), 'contoh-twibbon.png', 'template');
+        setTemplate(t); toast('Template contoh dimuat. Sekarang pilih fotomu.');
+      } catch { toast('Gagal memuat contoh.'); }
+    };
+
+    $('#btnAuto').onclick = () => { if (S.hole) fitHole(); else toast('Tidak ada lubang transparan terdeteksi.'); };
+    $('#btnCover').onclick = fitCover;
+    $('#btnRotL').onclick = () => { S.rot -= 90; render(); };
+    $('#btnRotR').onclick = () => { S.rot += 90; render(); };
+    $('#btnFlip').onclick = () => { S.flip *= -1; render(); };
+    $('#btnReset').onclick = resetAll;
+
+    $('#zoom').oninput = (e) => {
+      if (!S.photo) return;
+      const target = S.coverScale * Number(e.target.value) / 100;
+      const k = target / S.ps;
+      S.cx = S.template.w / 2 - (S.template.w / 2 - S.cx) * k;
+      S.cy = S.template.h / 2 - (S.template.h / 2 - S.cy) * k;
+      S.ps = target;
+      $('#zoomVal').textContent = e.target.value + '%';
+      render();
+    };
+
+    const bindFilter = (id, key, out) => {
+      const el = $(id);
+      el.oninput = () => { S.filter[key] = Number(el.value); $(out).textContent = el.value; render(); };
+    };
+    bindFilter('#fBright', 'brightness', '#vBright');
+    bindFilter('#fContrast', 'contrast', '#vContrast');
+    bindFilter('#fSaturate', 'saturate', '#vSaturate');
+    bindFilter('#fGray', 'grayscale', '#vGray');
+    $('#btnFilterReset').onclick = () => {
+      S.filter = { brightness: 100, contrast: 100, saturate: 100, grayscale: 0 };
+      $('#fBright').value = 100; $('#fContrast').value = 100; $('#fSaturate').value = 100; $('#fGray').value = 0;
+      $('#vBright').textContent = '100'; $('#vContrast').textContent = '100'; $('#vSaturate').textContent = '100'; $('#vGray').textContent = '0';
+      render();
+    };
+
+    $('#txt').oninput = (e) => { S.text.value = e.target.value; render(); };
+    $('#txtSize').oninput = (e) => { S.text.size = Number(e.target.value); $('#vTxtSize').textContent = e.target.value; render(); };
+    $('#txtAnchor').onchange = (e) => { S.text.anchor = e.target.value; render(); };
+    $('#txtColor').oninput = (e) => { S.text.color = e.target.value; render(); };
+    $('#txtOutline').oninput = (e) => { S.text.outline = e.target.value; render(); };
+    $('#txtOWidth').oninput = (e) => { S.text.ow = Number(e.target.value); $('#vTxtOW').textContent = (e.target.value / 10).toFixed(1); render(); };
+
+    $('#bgOn').onchange = (e) => { S.bg.enabled = e.target.checked; syncUI(); render(); };
+    $('#bgColor').oninput = (e) => { S.bg.color = e.target.value; render(); };
+    $('#tplOnTop').onchange = (e) => { S.templateOnTop = e.target.checked; render(); };
+    $('#exportScale').onchange = (e) => { S.exportScale = Number(e.target.value); syncUI(); };
+
+    $('#btnPng').onclick = () => download('png');
+    $('#btnJpg').onclick = () => download('jpg');
+
+    // drag & drop di seluruh halaman
+    const stop = (e) => { e.preventDefault(); };
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((t) => window.addEventListener(t, stop, false));
+    window.addEventListener('drop', (e) => {
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) readFile(f, !S.template ? 'template' : 'photo');
+    });
+
+    // tempel dari papan klip
+    window.addEventListener('paste', (e) => {
+      const items = e.clipboardData && e.clipboardData.files;
+      if (items && items[0]) readFile(items[0], !S.template ? 'template' : 'photo');
+    });
+
+    if ('ResizeObserver' in window) new ResizeObserver(() => layout()).observe(stage);
+    window.addEventListener('orientationchange', () => setTimeout(layout, 120));
+  }
+
+  /* ───────────────────────── PWA (luring penuh) ───────────────────────── */
+  function setupPWA() {
+    if (!('serviceWorker' in navigator)) return;
+    if (!/^https?:$/.test(location.protocol)) return;    // service worker tidak berjalan di file://
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        reg.update();                                    // cek pembaruan tiap kali dibuka
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            // Hanya tawarkan muat ulang bila sudah ada halaman yang dikendalikan,
+            // dan JANGAN paksa reload — foto yang sedang diatur bisa hilang.
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              toast('Versi baru tersedia.', { label: 'Muat ulang', run: () => location.reload() });
+            }
+          });
+        });
+      } catch { /* service worker opsional: aplikasi tetap jalan tanpa mode luring */ }
+    });
+  }
+
+  wire();
+  setupPWA();
+  $('#zoomVal').textContent = '100%';
+})();
+</script>
+</body>
+</html>
