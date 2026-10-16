@@ -70,6 +70,18 @@ fi
 
 # ── 2) commit ──
 log "2/6  Menyimpan perubahan (commit)"
+# Naikkan nomor versi cache secara otomatis (satu sumber: sw.js + index.html)
+# hanya bila memang ada yang akan di-commit, agar tidak membuat commit kosong.
+NEED_BUMP=0
+if [ ! -d .git ] || ! git rev-parse -q --verify HEAD >/dev/null 2>&1; then NEED_BUMP=1; fi
+if [ -n "$(git status --porcelain 2>/dev/null || true)" ]; then NEED_BUMP=1; fi
+if [ "$DRY_RUN" = "1" ]; then
+  info "[dry-run] tools/set-version.sh  (naikkan versi cache)"
+elif [ "$NEED_BUMP" = "1" ]; then
+  ./tools/set-version.sh
+else
+  info "tidak ada perubahan — versi cache dibiarkan"
+fi
 run git add -A
 if [ "$DRY_RUN" = "1" ]; then
   info "[dry-run] git commit -m \"$COMMIT_MSG\" (bila ada perubahan)"

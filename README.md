@@ -13,3 +13,11 @@ Klik kanan terminal -> select all -> copy
 
 ## Sesi opencode
 opencode -> /session -> enter
+
+## MCP Server
+•chrome-devtools
+•lighthouse
+•rea
+
+## Catatan
+

@@ -16,15 +16,17 @@ Ini adalah alternatif bebas (open source) untuk fitur-fitur twibbon yang biasany
 | Atur manual | Geser (mouse/sentuh), cubit/gulir untuk zoom, cubit dua jari untuk memutar, cermin, putar 90° |
 | Isi penuh | Mode alternatif: foto menutupi seluruh kanvas, template menyaringnya |
 | Filter foto | Kecerahan, kontras, saturasi, hitam-putih — semuanya gratis |
-| Teks | Nama/acara/angkatan, ukuran, warna, garis tepi, 9 posisi, ikut menyesuaikan ukuran |
+| Teks | Nama/acara/angkatan, ukuran bebas (tanpa dipangkas otomatis), warna, garis tepi, 9 posisi, **kerapatan huruf & kata**, ikut menyesuaikan ukuran template |
 | Latar belakang | Transparan (PNG) atau warna pilihan (JPG) |
 | Unduh | PNG transparan atau JPG, pada resolusi penuh template (1×) atau 0,5× / 2× |
 | Tanpa watermark | Tidak pernah ada watermark, tanpa batas jumlah unduhan |
 | Contoh bawaan | Tombol "Pakai contoh" untuk mencoba tanpa berkas apa pun |
-| Cara memasukkan gambar | Tombol pilih berkas, seret & lepas, kamera (ponsel), atau tempel (Ctrl+V) |
+| Cara memasukkan gambar | Tombol pilih berkas, **kamera di dalam aplikasi**, seret & lepas, atau tempel (Ctrl+V) |
+| Pratinjau melayang | Saat kanvas tergulir keluar layar, pratinjau kecil muncul di pojok agar hasil tetap terlihat saat menyetel filter (klik untuk kembali) |
+| Teks melingkar | Teks mengikuti tepi lubang dengan **rotasi sudut 0–360°** + pengatur jari-jari |
 | PWA / luring penuh | Bisa dipasang ke layar utama; seluruh fitur tetap jalan tanpa internet |
 | `run.sh` | Skrip menjalankan proyek secara lokal (server statis + membuka peramban) |
-| `push.sh` | Skrip push ke GitHub + aktifkan Pages + deploy (sekali perintah) |
+| `push.sh` | Skrip push ke GitHub + naikkan versi cache otomatis + aktifkan Pages + deploy (sekali perintah) |
 
 ## Cara pakai
 
@@ -75,6 +77,7 @@ Berkasnya:
 | `sw.js` | Service worker + strategi cache |
 | `icons/`, `apple-touch-icon.png` | Ikon (dibuat oleh `tools/make-icons.mjs`, tanpa dependensi) |
 | `tools/make-icons.mjs` | Pembuat ikon: `node tools/make-icons.mjs` |
+| `tools/set-version.sh` | Menulis nomor versi ke `sw.js` + `index.html` (dipakai otomatis oleh `push.sh`) |
 
 ### Kenapa cache-nya tidak akan menghambat pembaruan kode
 
@@ -86,13 +89,37 @@ Ini kekhawatiran yang wajar pada PWA, dan diselesaikan secara sengaja:
    selalu menerima kode terbaru; cache hanya dipakai sebagai cadangan saat luring. Jadi
    `git push` langsung terasa, tanpa perlu mengubah apa pun.
 3. **Aset (ikon/manifest) memakai *stale-while-revalidate*** — cepat, tetap diperbarui.
-4. **Nama cache memuat versi** (`twibon-v1`). Saat `VERSION` di `sw.js` dinaikkan, semua
-   cache lama dihapus pada tahap `activate`, jadi tidak menumpuk.
+4. **Nama cache memuat nomor versi** (`twibon-<versi>`). Saat versi dinaikkan, semua cache
+   lama dihapus pada tahap `activate`, jadi tidak menumpuk.
 5. **`skipWaiting()` + `clients.claim()`** membuat service worker baru langsung aktif;
    halaman menampilkan tombol **"Muat ulang"** (tidak memuat ulang paksa, supaya foto yang
    sedang diatur tidak hilang).
 
-Jika daftar berkas di `SHELL` (`sw.js`) berubah, naikkan `VERSION` agar cache lama dibuang.
+Jika daftar berkas di `SHELL` (`sw.js`) berubah, naikkan versi agar cache lama dibuang.
+
+### Versi & pembaruan otomatis
+
+Nomor versi disimpan di **satu sumber** dan dipakai dua tempat:
+
+- `sw.js` → `const VERSION = 'v1.0.0';` (menentukan nama cache)
+- `index.html` → `<meta name="app-version" content="v1.0.0">` (ditampilkan di footer dan
+  notifikasi pembaruan)
+
+`push.sh` **menaikkan versi secara otomatis** setiap kali ada perubahan yang akan di-commit
+(memakai `tools/set-version.sh`, format waktu `v2026.10.16.0920`). Jadi setiap push
+menghasilkan nama cache baru → cache lama dibuang sendiri, dan pengguna lama menerima
+notifikasi. Bila tidak ada perubahan, versi dibiarkan agar tidak membuat commit kosong.
+
+Menulis versi manual bila perlu:
+
+```bash
+tools/set-version.sh            # otomatis dari waktu sekarang
+tools/set-version.sh v1.2.3     # versi tertentu
+```
+
+**Notifikasi pembaruan** menampilkan versi lama dan versi baru, misalnya
+`Versi baru tersedia: v1.0.0 → v1.0.1`, beserta tombol **Muat ulang**. Versi baru diperoleh
+dengan menanyai service worker baru lewat `MessageChannel` (pesan `{type:'VERSION'}`).
 
 ### Menguji mode luring
 
@@ -115,10 +142,11 @@ VISIBILITY=private ./push.sh
 DRY_RUN=1 ./push.sh        # lihat rencananya dulu, tanpa efek samping
 ```
 
-`push.sh` melakukan semuanya secara berurutan: `git init` (bila perlu) → commit →
-`gh repo create` (bila perlu, dengan deskripsi repo) → `git push` → aktifkan Pages
-(`build_type=workflow`) → jalankan workflow deploy → cetak URL situs. Aman dijalankan
-berulang kali (idempoten). Perlu `git` + `gh` dan sudah `gh auth login`.
+`push.sh` melakukan semuanya secara berurutan: `git init` (bila perlu) → **naikkan versi
+cache otomatis** (bila ada perubahan) → commit → `gh repo create` (bila perlu, dengan
+deskripsi repo) → `git push` → aktifkan Pages (`build_type=workflow`) → jalankan workflow
+deploy → cetak URL situs. Aman dijalankan berulang kali (idempoten). Perlu `git` + `gh` dan
+sudah `gh auth login`.
 
 ### Cara manual
 

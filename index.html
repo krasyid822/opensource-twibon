@@ -10,6 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ccircle cx='50' cy='50' r='24' fill='none' stroke='white' stroke-width='9'/%3E%3C/svg%3E">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="app-version" content="v2026.10.16.1621">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -28,6 +29,7 @@
            --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 30px -16px rgba(0,0,0,.8); }
   }
   *{box-sizing:border-box}
+  [hidden]{display:none !important}
   html,body{margin:0}
   body{
     background:var(--bg); color:var(--fg); -webkit-text-size-adjust:100%;
@@ -65,15 +67,19 @@
   .stagewrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
              box-shadow:var(--shadow);padding:10px}
   .stage{display:flex;align-items:center;justify-content:center;height:clamp(230px,50vh,600px)}
+  /* Area geser foto = hanya bagian foto yang benar-benar terlihat (lubang template).
+     Sentuhan di area bingkai yang menutupi foto dibiarkan men-scroll halaman, sehingga
+     foto tidak ikut bergeser tanpa sengaja. */
+  #grabzone{position:absolute;z-index:2;touch-action:none;cursor:grab;border-radius:8px}
+  #grabzone:active{cursor:grabbing}
   canvas#preview{
-    display:block;touch-action:none;border-radius:8px;cursor:grab;max-width:100%;
+    display:block;touch-action:pan-x pan-y;border-radius:8px;max-width:100%;
     background-color:transparent;
     background-image:
       linear-gradient(45deg,var(--check) 25%,transparent 25%,transparent 75%,var(--check) 75%),
       linear-gradient(45deg,var(--check) 25%,transparent 25%,transparent 75%,var(--check) 75%);
     background-size:20px 20px;background-position:0 0,10px 10px;
   }
-  canvas#preview:active{cursor:grabbing}
   .hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(17,24,39,.86);color:#fff;
         padding:7px 12px;border-radius:999px;font-size:.8rem;pointer-events:none;transition:opacity .5s;white-space:nowrap}
   .hint.gone{opacity:0}
@@ -89,7 +95,16 @@
   label.row input[type=range]{flex:1;accent-color:var(--accent)}
   label.row input[type=color]{width:38px;height:30px;padding:0;border:1px solid var(--line);border-radius:8px;background:none}
   input[type=text],select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:inherit;min-width:0}
-  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  /* Baris slider ditata dua baris: label + nilai di baris atas, slider selebar penuh di
+     baris bawah — supaya slider tidak pernah terhimpit jadi 0 px di kolom yang sempit. */
+  label.row:has(input[type=range]){flex-wrap:wrap;row-gap:4px}
+  label.row:has(input[type=range])>span:first-child{flex:1 1 auto;min-width:0;order:0}
+  label.row:has(input[type=range])>b{flex:0 0 auto;order:1}
+  label.row:has(input[type=range])>input[type=range]{flex:1 1 100%;width:100%;min-width:0;order:2}
+  .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  @media (max-width:560px){ .grid2{grid-template-columns:minmax(0,1fr)} }
+  /* jarak editor dari kartu pemilih di atasnya */
+  #editor{margin-top:18px}
   details.panel>summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
   details.panel>summary::-webkit-details-marker{display:none}
   details.panel>summary::after{content:"▾";color:var(--muted)}
@@ -114,6 +129,45 @@
   footer{color:var(--muted);font-size:.78rem;text-align:center;padding:18px 16px 6px}
   .banner{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.83rem;color:var(--fg);margin:12px 0}
   .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--soft);border-radius:5px;padding:1px 5px;font-size:.78rem}
+
+  /* cegah kartu setelan meluber ke samping */
+  .grid2>*{min-width:0}
+  details.panel,fieldset,label.row{min-width:0}
+  label.row>input,label.row>select{min-width:0}
+  label.row input[type=range]{min-width:0}
+  label.row select{flex:1 1 auto}
+  #curveOpts{width:100%}
+
+  /* pratinjau melayang saat kanvas tergulir keluar layar */
+  .miniview{position:fixed;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:30;
+            border:1px solid var(--line);border-radius:12px;background:var(--card);box-shadow:var(--shadow);
+            padding:6px;cursor:grab;touch-action:none;display:grid;place-items:center;transition:opacity .2s}
+  .miniview:hover{border-color:var(--accent)}
+  .miniview.dragging{cursor:grabbing;border-color:var(--accent)}
+  .miniview canvas#miniPreview{display:block;border-radius:8px;
+    background-image:
+      linear-gradient(45deg,var(--check) 25%,transparent 25%,transparent 75%,var(--check) 75%),
+      linear-gradient(45deg,var(--check) 25%,transparent 25%,transparent 75%,var(--check) 75%);
+    background-size:14px 14px;background-position:0 0,7px 7px}
+  .miniview.resizing{border-color:var(--accent)}
+  /* gagang ubah ukuran (sudut kiri-atas karena panel dipaku ke kanan-bawah) */
+  .miniview .mv-grip{position:absolute;top:-8px;left:-8px;width:26px;height:26px;border-radius:50%;
+    background:var(--accent);border:2px solid var(--card);cursor:nwse-resize;touch-action:none;
+    display:grid;place-items:center;opacity:.6;transition:opacity .15s,transform .15s;box-shadow:var(--shadow)}
+  .miniview .mv-grip:hover,.miniview .mv-grip:focus-visible{opacity:1;transform:scale(1.08);outline:none}
+  .miniview .mv-grip::before{content:'';width:9px;height:9px;border-left:2px solid #fff;
+    border-top:2px solid #fff;border-top-left-radius:2px}
+  .miniview .mv-tag{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);background:var(--fg);color:var(--bg);
+    font-size:.64rem;line-height:1.4;padding:0 7px;border-radius:999px;white-space:nowrap;pointer-events:none}
+
+  /* kamera */
+  .modal{position:fixed;inset:0;z-index:60;background:rgba(8,10,18,.72);display:grid;place-items:center;padding:14px}
+  .modal[hidden]{display:none}
+  .camcard{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+           padding:12px;display:flex;flex-direction:column;gap:10px;max-width:min(560px,94vw)}
+  .camcard video{width:100%;border-radius:10px;background:#000;display:block;max-height:62vh;object-fit:cover}
+  .camcard video.mirror{transform:scaleX(-1)}
+  .camcard .camacts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -169,21 +223,22 @@
   <section id="editor" hidden aria-label="Editor">
     <div class="stagewrap">
       <div class="stage" id="stage">
-        <canvas id="preview" aria-label="Pratinjau twibbon. Geser untuk mengatur posisi foto, cubit atau gulir untuk memperbesar."></canvas>
+        <canvas id="preview" aria-label="Pratinjau twibbon. Geser foto yang terlihat untuk mengatur posisi, cubit atau gulir untuk memperbesar."></canvas>
       </div>
+      <div id="grabzone" hidden aria-hidden="true"></div>
       <div class="hint" id="hint">Geser untuk mengatur · Cubit / gulir untuk zoom</div>
     </div>
 
     <div class="meta">
       <div class="chips">
-        <img id="chipTpl" class="chip" alt="Template saat ini">
-        <img id="chipPhoto" class="chip" alt="Foto saat ini">
+        <img id="chipTpl" class="chip" alt="" hidden>
+        <img id="chipPhoto" class="chip" alt="" hidden>
         <span>Ukuran: <b id="dimSize">–</b></span>
       </div>
       <span id="holeInfo"></span>
     </div>
 
-    <div class="card panel" style="margin-top:10px">
+    <div class="card panel" style="margin-top:14px">
       <div class="btnrow">
         <button id="btnAuto" class="primary sm">✨ Otomatis (isi lubang)</button>
         <button id="btnCover" class="sm">⤢ Isi penuh</button>
@@ -199,7 +254,7 @@
       </div>
     </div>
 
-    <details class="card panel" style="margin-top:10px">
+    <details class="card panel" style="margin-top:14px">
       <summary>Lanjutan (filter, teks, latar, kualitas)</summary>
       <fieldset>
         <legend>Filter foto</legend>
@@ -231,6 +286,13 @@
           <label class="row"><span>Warna</span><input id="txtColor" type="color" value="#ffffff"></label>
           <label class="row"><span>Garis tepi</span><input id="txtOutline" type="color" value="#000000"></label>
           <label class="row"><span>Tebal tepi</span><input id="txtOWidth" type="range" min="0" max="20" value="6"><b id="vTxtOW" style="min-width:44px;text-align:right">0.6</b></label>
+          <label class="row"><span>Kerapatan huruf</span><input id="txtSpacing" type="range" min="-20" max="60" value="0"><b id="vTxtSpacing" style="min-width:44px;text-align:right">0</b></label>
+          <label class="row"><span>Kerapatan kata</span><input id="txtWordSpacing" type="range" min="-40" max="120" value="0"><b id="vTxtWordSpacing" style="min-width:44px;text-align:right">0</b></label>
+        </div>
+        <label class="row"><span>Melingkar</span><input id="txtCurve" type="checkbox"><small style="color:var(--muted);font-size:.78rem">mengikuti tepi lubang</small></label>
+        <div class="grid2" id="curveOpts" hidden>
+          <label class="row"><span>Rotasi</span><input id="txtCurveAngle" type="range" min="0" max="360" value="0"><b id="vTxtCurveAngle" style="min-width:44px;text-align:right">0°</b></label>
+          <label class="row"><span>Jari-jari</span><input id="txtCurveR" type="range" min="60" max="130" value="95"><b id="vTxtCurveR" style="min-width:44px;text-align:right">95</b></label>
         </div>
       </fieldset>
 
@@ -255,10 +317,28 @@
 
     <footer>
       Dibuat dengan kanvas browser — tidak ada unggahan ke server mana pun.
-      Kode sumber bebas di bawah GNU GPL-3.0.
+      Kode sumber bebas di bawah GNU GPL-3.0 · versi <span id="appVer">–</span>
     </footer>
   </section>
 </main>
+
+<div class="miniview" id="miniview" hidden title="Geser untuk memindahkan &middot; klik untuk kembali ke pratinjau">
+  <canvas id="miniPreview" width="118" height="118" aria-hidden="true"></canvas>
+  <span class="mv-grip" id="miniGrip" role="slider" tabindex="0" aria-label="Ubah ukuran pratinjau"
+        aria-valuemin="72" aria-valuemax="320" title="Tarik untuk mengubah ukuran (atau pakai tombol panah)"></span>
+  <span class="mv-tag">pratinjau</span>
+</div>
+
+<div class="modal" id="camModal" hidden role="dialog" aria-modal="true" aria-label="Kamera">
+  <div class="camcard">
+    <video id="camVideo" playsinline autoplay muted></video>
+    <div class="camacts">
+      <button id="camShot" class="primary">📸 Ambil</button>
+      <button id="camSwitch" class="ghost sm" type="button">🔄 Ganti kamera</button>
+      <button id="camClose" class="ghost sm" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
 
 <div class="bar" id="bar" hidden>
   <div class="in">
@@ -286,6 +366,8 @@
     return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
   const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
   const SUPPORTS_FILTER = 'filter' in CanvasRenderingContext2D.prototype;
+  const SUPPORTS_SPACING = 'letterSpacing' in CanvasRenderingContext2D.prototype;
+  const APP_VERSION = ($('meta[name="app-version"]') || {}).content || '?';
 
   let toastTimer;
   function toast(msg, action) {
@@ -310,7 +392,8 @@
     hole: null,              // { x, y, w, h, coverage } area transparan terdeteksi
     templateOnTop: true,
     filter: { brightness: 100, contrast: 100, saturate: 100, grayscale: 0 },
-    text: { value: '', size: 8, color: '#ffffff', outline: '#000000', ow: 6, anchor: 'bc' },
+    text: { value: '', size: 8, color: '#ffffff', outline: '#000000', ow: 6, anchor: 'bc',
+            spacing: 0, wordSpacing: 0, curve: false, curveAngle: 0, curveR: 95 },
     bg: { enabled: false, color: '#ffffff' },
     exportScale: 1,
     view: 1, dpr: 1
@@ -319,6 +402,8 @@
   const canvas = $('#preview');
   const ctx = canvas.getContext('2d');
   const stage = $('#stage');
+  const stagewrap = $('.stagewrap');
+  const grabzone = $('#grabzone');
 
   /* ───────────────────────── memuat gambar ───────────────────────── */
   async function decode(file, cap) {
@@ -360,21 +445,27 @@
     S.hole = detectHole(t.img);
     const thumb = imgToDataURL(t, 320);
     $('#tplThumb').hidden = false; $('#tplThumb').src = thumb;
-    $('#chipTpl').src = thumb;
-    $('#picker').hidden = true;
+    $('#chipTpl').hidden = false; $('#chipTpl').src = thumb;
+    // Kartu pemilih tetap tampil (tidak disembunyikan) supaya template & foto selalu bisa diganti.
     $('#editor').hidden = false;
     $('#bar').hidden = false;
     $('#holeInfo').textContent = S.hole ? 'Lubang terdeteksi ✓' : '';
     if (S.photo) fitPhoto(true); else layout();
+    // Keadaan pratinjau melayang juga bergantung pada template/editor, bukan hanya
+    // pada IntersectionObserver — jadi hitung ulang di sini. Tanpa ini, memuat
+    // template saat stage sudah di luar layar (dan tak pernah masuk viewport) membuat
+    // pratinjau melayang tak pernah muncul.
+    refreshMini();
   }
 
   function setPhoto(p) {
     S.photo = p;
     const thumb = imgToDataURL(p, 320);
     $('#photoThumb').hidden = false; $('#photoThumb').src = thumb;
-    $('#chipPhoto').src = thumb;
+    $('#chipPhoto').hidden = false; $('#chipPhoto').src = thumb;
     computeCoverScale();
     fitPhoto(true);                       // otomatis: isi lubang kalau terdeteksi, jika tidak isi penuh
+    revealStage();
     $('#hint').classList.remove('gone');
     setTimeout(() => $('#hint').classList.add('gone'), 4200);
   }
@@ -468,11 +559,17 @@
   function resetAll() {
     S.rot = 0; S.flip = 1;
     S.filter = { brightness: 100, contrast: 100, saturate: 100, grayscale: 0 };
-    Object.assign(S.text, { value: '', size: 8, color: '#ffffff', outline: '#000000', ow: 6, anchor: 'bc' });
+    Object.assign(S.text, { value: '', size: 8, color: '#ffffff', outline: '#000000', ow: 6, anchor: 'bc',
+                            spacing: 0, wordSpacing: 0, curve: false, curveAngle: 0, curveR: 95 });
     S.bg.enabled = false; S.bg.color = '#ffffff'; S.exportScale = 1; S.templateOnTop = true;
     $('#txt').value = ''; $('#bgOn').checked = false; $('#tplOnTop').checked = true;
     $('#bgColor').value = '#ffffff'; $('#txtColor').value = '#ffffff'; $('#txtOutline').value = '#000000';
     $('#txtAnchor').value = 'bc'; $('#exportScale').value = '1';
+    $('#txtCurve').checked = false; $('#curveOpts').hidden = true; $('#txtAnchor').disabled = false;
+    $('#txtSpacing').value = '0'; $('#vTxtSpacing').textContent = '0';
+    $('#txtWordSpacing').value = '0'; $('#vTxtWordSpacing').textContent = '0';
+    $('#txtCurveAngle').value = '0'; $('#vTxtCurveAngle').textContent = '0°';
+    $('#txtCurveR').value = '95'; $('#vTxtCurveR').textContent = '95';
     fitCover(); syncUI(); toast('Direset.');
   }
 
@@ -506,18 +603,26 @@
   function drawText(c) {
     const txt = S.text.value.trim();
     if (!txt) return;
+    if (S.text.curve) { drawCurvedText(c, txt); return; }
+    drawStraightText(c, txt);
+  }
+
+  // Kerapatan huruf/kata memakai ctx.letterSpacing/wordSpacing bila didukung peramban.
+  function applySpacing(c, size) {
+    if (!SUPPORTS_SPACING) return;
+    c.letterSpacing = (size * (S.text.spacing || 0) / 100) + 'px';
+    if ('wordSpacing' in c) c.wordSpacing = (size * (S.text.wordSpacing || 0) / 100) + 'px';
+  }
+
+  function drawStraightText(c, txt) {
     const W = S.template.w, H = S.template.h;
     const pad = W * 0.035;
     const p = anchorPoint(S.text.anchor, W, H, pad);
-    let size = W * S.text.size / 100;
+    const size = W * S.text.size / 100;      // ukuran mengikuti penggeser, tanpa dipangkas otomatis
     c.save();
     c.textAlign = p.align; c.textBaseline = p.base; c.lineJoin = 'round'; c.miterLimit = 2;
-    // perkecil otomatis bila terlalu lebar
-    for (let i = 0; i < 40; i++) {
-      c.font = `700 ${size}px ${FONT}`;
-      if (c.measureText(txt).width <= W - pad * 2 || size <= W * 0.02) break;
-      size *= 0.94;
-    }
+    c.font = `700 ${size}px ${FONT}`;
+    applySpacing(c, size);
     if (S.text.ow > 0) {
       c.lineWidth = Math.max(1, size * S.text.ow / 10);
       c.strokeStyle = S.text.outline;
@@ -525,6 +630,50 @@
     }
     c.fillStyle = S.text.color;
     c.fillText(txt, p.x, p.y);
+    c.restore();
+  }
+
+  // Teks melingkar mengikuti tepi lubang (atau lingkaran dalam kanvas bila lubang tak terdeteksi).
+  // phi = 0 di puncak lingkaran, bertambah searah jarum jam; ke arah luar = "atas" huruf.
+  function drawCurvedText(c, txt) {
+    const W = S.template.w, H = S.template.h, h = S.hole;
+    const cx = h ? h.x + h.w / 2 : W / 2;
+    const cy = h ? h.y + h.h / 2 : H / 2;
+    const rBase = h ? Math.max(h.w, h.h) / 2 : Math.min(W, H) * 0.42;
+    const R = Math.max(12, rBase * (S.text.curveR / 100));
+    const base = (Number(S.text.curveAngle) || 0) * Math.PI / 180;   // 0° = puncak
+    const chars = [...txt];
+    let size = W * S.text.size / 100;
+    c.save();
+    if (SUPPORTS_SPACING) { c.letterSpacing = '0px'; c.wordSpacing = '0px'; }  // kerapatan dihitung manual
+    let widths = [], total = 0;
+    // Perkecil hanya bila lengkungan sudah melewati satu lingkaran penuh (batas geometris).
+    for (let i = 0; i < 30; i++) {
+      const ls = size * (S.text.spacing || 0) / 100;
+      const ws = size * (S.text.wordSpacing || 0) / 100;
+      c.font = `700 ${size}px ${FONT}`;
+      widths = chars.map((ch, j) => c.measureText(ch).width + (ch === ' ' ? ws : 0) + (j < chars.length - 1 ? ls : 0));
+      total = widths.reduce((a, b) => a + b, 0);
+      if (total / R <= Math.PI * 1.9 || size <= W * 0.015) break;
+      size *= 0.94;
+    }
+    const arc = total / R;
+    const lw = S.text.ow > 0 ? Math.max(1, size * S.text.ow / 10) : 0;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineJoin = 'round'; c.miterLimit = 2;
+    let phi = base - arc / 2;
+    for (let i = 0; i < chars.length; i++) {
+      const step = widths[i] / R;
+      c.save();
+      c.translate(cx, cy);
+      c.rotate(phi + step / 2);
+      c.translate(0, -R);
+      if (lw > 0) { c.lineWidth = lw; c.strokeStyle = S.text.outline; c.strokeText(chars[i], 0, 0); }
+      c.fillStyle = S.text.color;
+      c.fillText(chars[i], 0, 0);
+      c.restore();
+      phi += step;
+    }
     c.restore();
   }
 
@@ -563,12 +712,35 @@
   }
 
   function render() {
-    if (!S.template) return;
+    if (!S.template) { positionGrabzone(); return; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const k = S.view * S.dpr;
     ctx.setTransform(k, 0, 0, k, 0, 0);
     draw(ctx);
+    positionGrabzone();
+    if (!$('#miniview').hidden) updateMini();
+  }
+
+  /* Letak area geser = lubang transparan template (bagian foto yang terlihat),
+     diproyeksikan ke koordinat layar. Tanpa lubang, seluruh kanvas jadi area geser. */
+  function positionGrabzone() {
+    if (!S.template || !S.photo) { grabzone.hidden = true; return; }
+    const r = canvas.getBoundingClientRect(), wr = stagewrap.getBoundingClientRect();
+    const ox = wr.left + stagewrap.clientLeft, oy = wr.top + stagewrap.clientTop;
+    let x = 0, y = 0, w = r.width, h = r.height;
+    if (S.hole) {
+      const hx = S.hole.x * S.view, hy = S.hole.y * S.view;
+      const hw = S.hole.w * S.view, hh = S.hole.h * S.view;
+      const x0 = clamp(hx, 0, r.width), y0 = clamp(hy, 0, r.height);
+      const x1 = clamp(hx + hw, 0, r.width), y1 = clamp(hy + hh, 0, r.height);
+      x = x0; y = y0; w = Math.max(0, x1 - x0); h = Math.max(0, y1 - y0);
+    }
+    grabzone.hidden = false;
+    grabzone.style.left = (r.left - ox + x) + 'px';
+    grabzone.style.top = (r.top - oy + y) + 'px';
+    grabzone.style.width = w + 'px';
+    grabzone.style.height = h + 'px';
   }
 
   /* ───────────────────────── gerakan (pointer) ───────────────────────── */
@@ -619,23 +791,24 @@
     syncUI(false); render();
   }
 
-  canvas.addEventListener('pointerdown', (e) => {
+  grabzone.addEventListener('pointerdown', (e) => {
     if (!S.photo) return;
-    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    grabzone.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     snapshot();
   });
-  canvas.addEventListener('pointermove', (e) => {
+  grabzone.addEventListener('pointermove', (e) => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     apply();
   });
   const endPointer = (e) => { pointers.delete(e.pointerId); snapshot(); };
-  canvas.addEventListener('pointerup', endPointer);
-  canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('pointerleave', endPointer);
+  grabzone.addEventListener('pointerup', endPointer);
+  grabzone.addEventListener('pointercancel', endPointer);
+  grabzone.addEventListener('lostpointercapture', endPointer);
 
-  canvas.addEventListener('wheel', (e) => {
+  grabzone.addEventListener('wheel', (e) => {
     if (!S.photo) return;
     e.preventDefault();
     const d = toDesign(e.clientX, e.clientY);
@@ -643,6 +816,7 @@
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('#camModal').hidden) { closeCamera(); return; }
     if ($('#editor').hidden || !S.photo) return;
     if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
     const step = e.shiftKey ? S.template.w * 0.05 : S.template.w * 0.01;
@@ -728,7 +902,7 @@
   function wire() {
     $('#btnTpl').onclick = () => $('#fileTpl').click();
     $('#btnPhoto').onclick = () => $('#filePhoto').click();
-    $('#btnCamera').onclick = () => $('#fileCamera').click();
+    $('#btnCamera').onclick = openCamera;
     $('#btnSwapTpl').onclick = () => $('#fileTpl').click();
     $('#btnSwapPhoto').onclick = () => $('#filePhoto').click();
 
@@ -782,6 +956,21 @@
     $('#txtColor').oninput = (e) => { S.text.color = e.target.value; render(); };
     $('#txtOutline').oninput = (e) => { S.text.outline = e.target.value; render(); };
     $('#txtOWidth').oninput = (e) => { S.text.ow = Number(e.target.value); $('#vTxtOW').textContent = (e.target.value / 10).toFixed(1); render(); };
+    $('#txtSpacing').oninput = (e) => { S.text.spacing = Number(e.target.value); $('#vTxtSpacing').textContent = e.target.value; render(); };
+    $('#txtWordSpacing').oninput = (e) => { S.text.wordSpacing = Number(e.target.value); $('#vTxtWordSpacing').textContent = e.target.value; render(); };
+
+    $('#txtCurve').onchange = (e) => {
+      S.text.curve = e.target.checked;
+      $('#curveOpts').hidden = !S.text.curve;
+      $('#txtAnchor').disabled = S.text.curve;      // posisi sudut tak dipakai saat melingkar
+      render();
+    };
+    $('#txtCurveAngle').oninput = (e) => { S.text.curveAngle = Number(e.target.value); $('#vTxtCurveAngle').textContent = e.target.value + '°'; render(); };
+    $('#txtCurveR').oninput = (e) => { S.text.curveR = Number(e.target.value); $('#vTxtCurveR').textContent = e.target.value; render(); };
+
+    $('#camClose').onclick = closeCamera;
+    $('#camShot').onclick = shoot;
+    $('#camSwitch').onclick = switchCamera;
 
     $('#bgOn').onchange = (e) => { S.bg.enabled = e.target.checked; syncUI(); render(); };
     $('#bgColor').oninput = (e) => { S.bg.color = e.target.value; render(); };
@@ -807,9 +996,230 @@
 
     if ('ResizeObserver' in window) new ResizeObserver(() => layout()).observe(stage);
     window.addEventListener('orientationchange', () => setTimeout(layout, 120));
+    setupMini();
+  }
+
+  /* ───────────────────────── pratinjau melayang ───────────────────────── */
+  // PENTING: tidak ada data yang disimpan ke browser — tanpa localStorage, cookie,
+  // maupun IndexedDB. Ukuran & posisi panel hanya hidup di memori sesi ini.
+  // Satu-satunya penyimpanan adalah cache service worker, dan itu murni agar
+  // aplikasi tetap berfungsi penuh saat luring.
+  let miniNeeded = false;
+  const MINI_MIN = 72, MINI_MAX = 320, MINI_DEF = 118, MINI_MARGIN = 8;
+  // Ukuran viewport yang benar-benar bisa dipakai untuk elemen position:fixed
+  // (clientWidth/Height sudah tidak termasuk scrollbar klasik, innerWidth termasuk).
+  const vw = () => document.documentElement.clientWidth;
+  const vh = () => document.documentElement.clientHeight;
+  // Batas atas efektif agar panel tak terpotong tepi layar, termasuk tonjolan gagang:
+  // lebar  = jarak kanan 12 + boks panel 14 + gagang 8  -> 34
+  // tinggi = jarak bawah 78 + boks panel 14 + gagang 8   -> 100
+  const miniCap = () => Math.max(MINI_MIN, Math.min(MINI_MAX,
+    Math.min(vw() - 34, vh() - 100)));
+  let miniSize = MINI_DEF;
+  let miniMoved = false;                       // sudah dipindah dari pojok bawaan?
+  function setMiniSize(px) {
+    miniSize = Math.round(Math.min(miniCap(), Math.max(MINI_MIN, px)));
+    const grip = $('#miniGrip');
+    if (grip) grip.setAttribute('aria-valuenow', String(miniSize));
+    updateMini();
+    if (miniMoved && !$('#miniview').hidden) placeMini();   // jepit ulang bila ukuran berubah
+  }
+  // Pindahkan panel memakai koordinat kiri-atas, dijepit agar seluruh panel
+  // (termasuk gagang yang menonjol 8px) tetap berada di dalam layar.
+  function placeMini(left, top) {
+    const el = $('#miniview');
+    const r = el.getBoundingClientRect();
+    const m = MINI_MARGIN;
+    const maxL = Math.max(m, vw() - r.width - m);
+    const maxT = Math.max(m, vh() - r.height - m);
+    const l = left == null ? r.left : left;
+    const t = top == null ? r.top : top;
+    el.style.right = 'auto'; el.style.bottom = 'auto';
+    el.style.left = Math.round(Math.min(maxL, Math.max(m, l))) + 'px';
+    el.style.top = Math.round(Math.min(maxT, Math.max(m, t))) + 'px';
+    miniMoved = true;
+  }
+  function updateMini() {
+    if (!S.template) return;
+    const W = S.template.w, H = S.template.h;
+    const max = miniSize, k = max / Math.max(W, H);
+    const w = Math.max(1, Math.round(W * k)), h = Math.max(1, Math.round(H * k));
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const el = $('#miniPreview');
+    el.style.width = w + 'px'; el.style.height = h + 'px';
+    el.width = Math.round(w * dpr); el.height = Math.round(h * dpr);
+    const x = el.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, el.width, el.height);
+    const kk = k * dpr;
+    x.setTransform(kk, 0, 0, kk, 0, 0);
+    draw(x);
+  }
+  function refreshMini() {
+    const want = miniNeeded && !$('#editor').hidden && !!S.template && $('#camModal').hidden;
+    const el = $('#miniview');
+    if (want) { el.hidden = false; updateMini(); } else { el.hidden = true; }
+  }
+  function setupMini() {
+    const el = $('#miniview');
+    setupMiniDrag(el);
+    setupMiniGrip(el);
+    window.addEventListener('resize', () => { setMiniSize(miniSize); if (S.template) positionGrabzone(); });   // jepit ulang ukuran & posisi
+    if (!('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver((entries) => {
+      const e = entries[0];
+      miniNeeded = !(e.isIntersecting && e.intersectionRatio >= 0.6);
+      refreshMini();
+    }, { threshold: [0, 0.25, 0.6, 0.85, 1] });
+    io.observe($('.stagewrap'));
+  }
+  // Geser panel: seret = pindahkan; klik tanpa geser = kembali ke pratinjau.
+  function setupMiniDrag(el) {
+    let drag = null, digeser = false;
+    const ambang = 4;                          // px sebelum dianggap "menggeser"
+    el.addEventListener('pointerdown', (e) => {
+      if (e.target.closest && e.target.closest('#miniGrip')) return;   // gagang = ubah ukuran
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top };
+      digeser = false;
+      try { el.setPointerCapture(e.pointerId); } catch { /* abaikan */ }
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      e.preventDefault();
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!digeser && Math.abs(dx) + Math.abs(dy) < ambang) return;
+      digeser = true;
+      el.classList.add('dragging');
+      placeMini(drag.left + dx, drag.top + dy);
+    });
+    const end = (e) => {
+      if (!drag) return;
+      const geser = digeser;
+      drag = null; digeser = false;
+      el.classList.remove('dragging');
+      try { el.releasePointerCapture(e.pointerId); } catch { /* abaikan */ }
+      if (!geser) $('.stagewrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  // Gagang ubah ukuran: seret (mouse/sentuh) atau tombol panah saat fokus.
+  function setupMiniGrip(el) {
+    const grip = $('#miniGrip');
+    if (!grip) return;
+    grip.setAttribute('aria-valuenow', String(miniSize));
+    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+    let drag = null;
+    grip.addEventListener('pointerdown', (e) => {
+      stop(e);
+      drag = { x: e.clientX, y: e.clientY, size: miniSize };
+      el.classList.add('resizing');
+      try { grip.setPointerCapture(e.pointerId); } catch { /* abaikan */ }
+    });
+    grip.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      stop(e);
+      // gagang di kiri-atas: geser ke kiri/atas = perbesar
+      const d = ((drag.x - e.clientX) + (drag.y - e.clientY)) / 2;
+      setMiniSize(drag.size + d, false);
+    });
+    const end = (e) => {
+      if (!drag) return;
+      stop(e);
+      drag = null;
+      el.classList.remove('resizing');
+      setMiniSize(miniSize, true);          // simpan ukuran akhir
+      try { grip.releasePointerCapture(e.pointerId); } catch { /* abaikan */ }
+    };
+    grip.addEventListener('pointerup', end);
+    grip.addEventListener('pointercancel', end);
+    grip.addEventListener('click', stop);    // jangan ikut lompat ke pratinjau
+    grip.addEventListener('keydown', (e) => {
+      const step = e.shiftKey ? 24 : 8;
+      let d = 0;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') d = step;
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') d = -step;
+      else if (e.key === 'Home') { e.preventDefault(); setMiniSize(MINI_DEF); return; }
+      else return;
+      e.preventDefault();
+      setMiniSize(miniSize + d);
+    });
+  }
+
+  // Geser ke pratinjau hanya bila sedang tidak terlihat (setelah foto dipilih).
+  function revealStage() {
+    const el = $('.stagewrap');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    if (r.top < 0 || r.bottom > vh + 4) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  /* ───────────────────────── kamera (getUserMedia) ───────────────────────── */
+  let camStream = null, camFacing = 'user';
+  function stopCamStream() {
+    if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
+    const v = $('#camVideo');
+    try { v.pause(); } catch { /* abaikan */ }
+    v.srcObject = null;
+  }
+  async function openCamera() {
+    // Fallback: peranti/browser tanpa getUserMedia -> input berkas dengan capture
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#fileCamera').click(); return; }
+    stopCamStream();
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacing }, audio: false });
+    } catch {
+      toast('Kamera tidak tersedia — membuka pemilih berkas.');
+      $('#fileCamera').click();                    // di ponsel memakai capture="user"
+      return;
+    }
+    const v = $('#camVideo');
+    v.classList.toggle('mirror', camFacing === 'user');
+    v.srcObject = camStream;
+    $('#camModal').hidden = false;
+    refreshMini();
+    try { await v.play(); } catch { /* autoplay bisa ditolak; tetap tampil */ }
+  }
+  function closeCamera() {
+    stopCamStream();
+    $('#camModal').hidden = true;
+    refreshMini();
+  }
+  async function switchCamera() {
+    camFacing = camFacing === 'user' ? 'environment' : 'user';
+    await openCamera();
+  }
+  function shoot() {
+    const v = $('#camVideo');
+    const w = v.videoWidth, h = v.videoHeight;
+    if (!w || !h) { toast('Kamera belum siap. Tunggu sebentar.'); return; }
+    const cap = 5000, k = Math.min(1, cap / Math.max(w, h));
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    const x = c.getContext('2d');
+    if (camFacing === 'user') { x.translate(c.width, 0); x.scale(-1, 1); }   // cocokkan dengan pratinjau bercermin
+    x.drawImage(v, 0, 0, c.width, c.height);
+    closeCamera();
+    setPhoto({ img: c, name: `kamera-${stamp()}.png`, w: c.width, h: c.height });
+    toast('Foto dari kamera dimuat.');
   }
 
   /* ───────────────────────── PWA (luring penuh) ───────────────────────── */
+  // Tanya versi ke sebuah service worker (untuk notifikasi pembaruan).
+  function swVersion(worker) {
+    return new Promise((resolve) => {
+      try {
+        const mc = new MessageChannel();
+        const t = setTimeout(() => resolve(null), 1500);
+        mc.port1.onmessage = (e) => { clearTimeout(t); resolve((e.data && e.data.version) || null); };
+        worker.postMessage({ type: 'VERSION' }, [mc.port2]);
+      } catch { resolve(null); }
+    });
+  }
+
   function setupPWA() {
     if (!('serviceWorker' in navigator)) return;
     if (!/^https?:$/.test(location.protocol)) return;    // service worker tidak berjalan di file://
@@ -820,11 +1230,13 @@
         reg.addEventListener('updatefound', () => {
           const nw = reg.installing;
           if (!nw) return;
-          nw.addEventListener('statechange', () => {
+          nw.addEventListener('statechange', async () => {
             // Hanya tawarkan muat ulang bila sudah ada halaman yang dikendalikan,
             // dan JANGAN paksa reload — foto yang sedang diatur bisa hilang.
             if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-              toast('Versi baru tersedia.', { label: 'Muat ulang', run: () => location.reload() });
+              const next = (await swVersion(nw)) || (await swVersion(reg.active)) || '?';
+              toast(`Versi baru tersedia: ${APP_VERSION} → ${next}`,
+                    { label: 'Muat ulang', run: () => location.reload() });
             }
           });
         });
@@ -834,6 +1246,7 @@
 
   wire();
   setupPWA();
+  $('#appVer').textContent = APP_VERSION;
   $('#zoomVal').textContent = '100%';
 })();
 </script>

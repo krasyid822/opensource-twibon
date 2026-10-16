@@ -19,7 +19,7 @@
  *
  * Naikkan VERSION bila daftar aset di SHELL berubah.
  */
-const VERSION = 'v1';
+const VERSION = 'v2026.10.16.1621';
 const CACHE = `twibon-${VERSION}`;
 const SHELL = [
   './',
@@ -54,7 +54,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  const data = event.data;
+  if (data === 'SKIP_WAITING') { self.skipWaiting(); return; }
+  if (data && data.type === 'VERSION') {
+    const port = event.ports && event.ports[0];
+    if (port) port.postMessage({ type: 'VERSION', version: VERSION });
+  }
 });
 
 self.addEventListener('fetch', (event) => {
